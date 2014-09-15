@@ -1,0 +1,59 @@
+<?php
+
+/**
+ * Implements hook_css_alter().
+ */
+function css_flipper_css_alter(&$css) {
+	$lang = _ftt_get_project_language();
+
+	if (!empty($lang) && $lang['rtl'] === TRUE) {
+		foreach ($css as $item) {
+			// Only provide overrides for files.
+			if ($item['type'] == 'file') {
+				$dir_path = str_replace('.css', "-auto-rtl.css", $item['data']);
+				$flipped_path = str_replace('.css', "-rtl.css", $item['data']);
+				// If the file exists, add the file with the dir (LTR/RTL) overrides.
+				if (isset($dir_path) && file_exists($dir_path) && !isset($css[$dir_path])) {
+					css_flipper_create($dir_path, $flipped_path);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Search for lines that look like :
+ * @flip {file: "path/to/filename.scss"};
+ * and replace them with a flipped version of filename.scss
+ * Then, create the stylesheet in the files directory
+ *
+ * @param   string   $path   path to the original style sheet
+ * @param   string   $dest   where the compiled file should be saved
+ */
+function css_flipper_create($path, $dest) {
+  $c = file_get_contents($path);
+  $data = preg_replace_callback('/@flip\s*\{\s*file\s*:\s*("[^"]+"|\'[^\']+\')[\s;]*\}/', 'css_flipper_flip', $c);
+
+  file_unmanaged_save_data($data, $dest, FILE_EXISTS_REPLACE);
+}
+
+/**
+ * [css_flipper_flip description]
+ * @param  array   $match   returned from preg_replace_callback()
+ * @return string           flipped cssconfigure = admin/structure/css_flipper/settings
+ */
+function css_flipper_flip($match) {
+  list(, $fname) = $match;
+  $fname = trim($fname, '"\'');
+  if (isset($fname) && file_exists($fname)) {
+    require_once __DIR__ . '/flipper.inc';
+    $c = file_get_contents($fname);
+    $Flipper = new Flipper;
+
+    $output = '/** Starting Auto-Flip **/';
+    $output .= $Flipper->parse_css($c);
+    $output .= '/** Ending Auto-Flip **/';
+
+    return $output;
+  }
+}

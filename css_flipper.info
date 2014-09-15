@@ -1,0 +1,5 @@
+name = CSS Flipper
+description = Flip your style sheets directionality in a breeze
+package = Theming
+core = 7.x
+
